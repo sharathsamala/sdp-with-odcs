@@ -1,0 +1,137 @@
+{
+  "apiVersion": "v3.0.0",
+  "kind": "DataContract",
+  "id": "urn:datacontract:bronze-new-account",
+  "info": {
+    "title": "Bronze New Account Opening Data Contract",
+    "version": "1.0.0",
+    "owner": "data-engineering",
+    "domain": "wealth-management",
+    "description": "Quality rules for new account application data ingested from CSV"
+  },
+  "dataset": {
+    "name": "bronze_new_account",
+    "description": "New account opening applications including applicant details, product selection, and approval status",
+    "columns": [
+      {"name": "app_id", "type": "string", "description": "Unique application identifier (UUID)"},
+      {"name": "applicant_name", "type": "string", "description": "Full name of the applicant"},
+      {"name": "ssn_last4", "type": "string", "description": "Last four digits of SSN"},
+      {"name": "product_code", "type": "string", "description": "Financial product applied for"},
+      {"name": "submission_date", "type": "string", "description": "Date the application was submitted (raw string)"},
+      {"name": "branch_id", "type": "string", "description": "Branch identifier (BR-XXXX format)"},
+      {"name": "status", "type": "string", "description": "Application processing status"},
+      {"name": "advisor_id", "type": "string", "description": "Assigned advisor (UUID)"},
+      {"name": "annual_income", "type": "string", "description": "Applicant reported annual income (raw string)"},
+      {"name": "credit_score", "type": "string", "description": "Applicant credit score (raw string)"},
+      {"name": "source_system", "type": "string", "description": "Originating system identifier"},
+      {"name": "_run_id", "type": "string", "description": "Generator run identifier"},
+      {"name": "_run_timestamp", "type": "string", "description": "Generator run timestamp"}
+    ]
+  },
+  "source": {
+    "path": "/Volumes/${catalog}/${schema}/${volume}/new_account/",
+    "format": "csv",
+    "options": {
+      "header": "true"
+    }
+  },
+  "silver": {
+    "table_name": "silver_new_account",
+    "transforms": [
+      {"column": "submission_date", "type": "date"},
+      {"column": "credit_score", "type": "integer"},
+      {"column": "annual_income", "type": "double"},
+      {"column": "product_code", "expr": "UPPER(TRIM(product_code))"},
+      {"column": "status", "expr": "UPPER(TRIM(status))"},
+      {"column": "applicant_name", "expr": "TRIM(applicant_name)"}
+    ]
+  },
+  "quality": [
+    {
+      "rule_name": "app_id_not_null",
+      "column": "app_id",
+      "rule_type": "not_null",
+      "severity": "critical",
+      "description": "Application ID must not be null"
+    },
+    {
+      "rule_name": "app_id_unique",
+      "column": "app_id",
+      "rule_type": "unique",
+      "severity": "critical",
+      "description": "Application ID must be unique"
+    },
+    {
+      "rule_name": "ssn_last4_format",
+      "column": "ssn_last4",
+      "rule_type": "regex",
+      "severity": "error",
+      "params": {
+        "pattern": "^\\d{4}$"
+      },
+      "description": "SSN last 4 must be exactly 4 digits"
+    },
+    {
+      "rule_name": "product_code_not_null",
+      "column": "product_code",
+      "rule_type": "not_null",
+      "severity": "critical",
+      "description": "Product code must not be null"
+    },
+    {
+      "rule_name": "product_code_valid",
+      "column": "product_code",
+      "rule_type": "accepted_values",
+      "severity": "error",
+      "params": {
+        "values": ["CHECKING", "SAVINGS", "BROKERAGE", "IRA", "401K"]
+      },
+      "description": "Product code must be a known financial product"
+    },
+    {
+      "rule_name": "submission_date_not_future",
+      "column": "submission_date",
+      "rule_type": "not_future_date",
+      "severity": "error",
+      "description": "Submission date must not be in the future"
+    },
+    {
+      "rule_name": "status_valid",
+      "column": "status",
+      "rule_type": "accepted_values",
+      "severity": "error",
+      "params": {
+        "values": ["PENDING", "APPROVED", "REJECTED", "REVIEW"]
+      },
+      "description": "Status must be a valid processing state"
+    },
+    {
+      "rule_name": "credit_score_range",
+      "column": "credit_score",
+      "rule_type": "range",
+      "severity": "error",
+      "params": {
+        "min": 300,
+        "max": 850
+      },
+      "description": "Credit score must be between 300 and 850"
+    },
+    {
+      "rule_name": "annual_income_range",
+      "column": "annual_income",
+      "rule_type": "range",
+      "severity": "warning",
+      "params": {
+        "min": 0
+      },
+      "description": "Annual income must not be negative"
+    },
+    {
+      "rule_name": "advisor_id_not_null",
+      "column": "advisor_id",
+      "rule_type": "not_null",
+      "severity": "warning",
+      "description": "Advisor ID should be populated"
+    }
+  ]
+}

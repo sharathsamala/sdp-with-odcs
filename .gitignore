@@ -1,0 +1,29 @@
+# Databricks bundle state
+.databricks/
+
+# Cursor / IDE
+.cursor/
+.ai-dev-kit/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json

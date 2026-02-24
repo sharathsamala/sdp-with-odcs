@@ -1,0 +1,122 @@
+{
+  "apiVersion": "v3.0.0",
+  "kind": "DataContract",
+  "id": "urn:datacontract:bronze-clientworks",
+  "info": {
+    "title": "Bronze ClientWorks Data Contract",
+    "version": "1.0.0",
+    "owner": "data-engineering",
+    "domain": "wealth-management",
+    "description": "Quality rules for ClientWorks client data ingested from pipe-delimited CSV"
+  },
+  "dataset": {
+    "name": "bronze_clientworks",
+    "description": "Raw client records from the ClientWorks system, including client profile, AUM, and advisor assignment",
+    "columns": [
+      {"name": "client_id", "type": "string", "description": "Unique client identifier (UUID format)"},
+      {"name": "client_name", "type": "string", "description": "Full name of the client"},
+      {"name": "account_type", "type": "string", "description": "Account classification"},
+      {"name": "risk_rating", "type": "string", "description": "Client risk rating 1-5 (raw string)"},
+      {"name": "advisor_id", "type": "string", "description": "Assigned financial advisor (UUID)"},
+      {"name": "created_date", "type": "string", "description": "Date the client record was created (raw string)"},
+      {"name": "aum", "type": "string", "description": "Assets under management in USD (raw string)"},
+      {"name": "relationship_manager", "type": "string", "description": "Name of the relationship manager"},
+      {"name": "region", "type": "string", "description": "Geographic region of the client"},
+      {"name": "is_active", "type": "string", "description": "Whether the client account is active (raw string)"},
+      {"name": "source_system", "type": "string", "description": "Originating system identifier"},
+      {"name": "_run_id", "type": "string", "description": "Generator run identifier"},
+      {"name": "_run_timestamp", "type": "string", "description": "Generator run timestamp"}
+    ]
+  },
+  "source": {
+    "path": "/Volumes/${catalog}/${schema}/${volume}/clientworks/",
+    "format": "csv",
+    "options": {
+      "delimiter": "|",
+      "header": "true"
+    }
+  },
+  "silver": {
+    "table_name": "silver_clientworks",
+    "transforms": [
+      {"column": "aum", "type": "double"},
+      {"column": "risk_rating", "type": "integer"},
+      {"column": "created_date", "type": "date"},
+      {"column": "account_type", "expr": "UPPER(TRIM(account_type))"},
+      {"column": "region", "expr": "UPPER(TRIM(region))"},
+      {"column": "client_name", "expr": "TRIM(client_name)"}
+    ]
+  },
+  "quality": [
+    {
+      "rule_name": "client_id_not_null",
+      "column": "client_id",
+      "rule_type": "not_null",
+      "severity": "critical",
+      "description": "Client ID must not be null"
+    },
+    {
+      "rule_name": "client_id_unique",
+      "column": "client_id",
+      "rule_type": "unique",
+      "severity": "critical",
+      "description": "Client ID must be unique across the dataset"
+    },
+    {
+      "rule_name": "account_type_valid",
+      "column": "account_type",
+      "rule_type": "accepted_values",
+      "severity": "error",
+      "params": {
+        "values": ["INDIVIDUAL", "JOINT", "TRUST", "CORPORATE"]
+      },
+      "description": "Account type must be one of the accepted values"
+    },
+    {
+      "rule_name": "aum_range",
+      "column": "aum",
+      "rule_type": "range",
+      "severity": "warning",
+      "params": {
+        "min": 0,
+        "max": 500000000
+      },
+      "description": "AUM must be between 0 and 500M"
+    },
+    {
+      "rule_name": "risk_rating_range",
+      "column": "risk_rating",
+      "rule_type": "range",
+      "severity": "error",
+      "params": {
+        "min": 1,
+        "max": 5
+      },
+      "description": "Risk rating must be between 1 and 5"
+    },
+    {
+      "rule_name": "created_date_not_future",
+      "column": "created_date",
+      "rule_type": "not_future_date",
+      "severity": "error",
+      "description": "Created date must not be in the future"
+    },
+    {
+      "rule_name": "region_valid",
+      "column": "region",
+      "rule_type": "accepted_values",
+      "severity": "warning",
+      "params": {
+        "values": ["NORTHEAST", "SOUTHEAST", "MIDWEST", "WEST", "INTERNATIONAL"]
+      },
+      "description": "Region must be a recognized geographic region"
+    },
+    {
+      "rule_name": "is_active_not_null",
+      "column": "is_active",
+      "rule_type": "not_null",
+      "severity": "warning",
+      "description": "Active flag should not be null"
+    }
+  ]
+}

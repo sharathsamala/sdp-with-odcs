@@ -1,0 +1,31 @@
+bundle:
+  name: de-demo
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name
+    default: sharath_lpl_catalog
+  schema:
+    description: Target schema for all tables and volumes
+    default: de_demo
+  volume:
+    description: Volume name for raw landing files
+    default: raw_files
+
+include:
+  - resources/pipeline_data_generator.yml
+  - resources/pipeline_ingestion.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://fevm-sharath-lpl.cloud.databricks.com
+      profile: sdp-odcs
+
+  prod:
+    mode: production
+    workspace:
+      host: https://fevm-sharath-lpl.cloud.databricks.com
+      profile: sdp-odcs

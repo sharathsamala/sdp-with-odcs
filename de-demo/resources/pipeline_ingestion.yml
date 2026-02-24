@@ -1,0 +1,39 @@
+resources:
+  pipelines:
+    ingestion_pipeline:
+      name: "DE Demo - Ingestion Pipeline"
+      catalog: ${var.catalog}
+      target: ${var.schema}_silver_gold
+      channel: PREVIEW
+      serverless: true
+
+      libraries:
+        - notebook:
+            path: ../src/pipelines/bronze_ingestion.py
+        - notebook:
+            path: ../src/pipelines/silver_transform.py
+        - notebook:
+            path: ../src/pipelines/gold_layer.py
+
+      configuration:
+        demo.catalog: ${var.catalog}
+        demo.schema: ${var.schema}
+        demo.volume: ${var.volume}
+        demo.run_id: ""
+        demo.config_base: ${workspace.root_path}/files/src/configs
+
+      development: true
+      continuous: false
+
+  jobs:
+    pipeline_ingestion:
+      name: "DE Demo - Run Ingestion Pipeline"
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+
+      tasks:
+        - task_key: run_ingestion_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.ingestion_pipeline.id}
+            full_refresh: false

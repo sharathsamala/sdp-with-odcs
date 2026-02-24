@@ -1,0 +1,149 @@
+{
+  "apiVersion": "v3.0.0",
+  "kind": "DataContract",
+  "id": "urn:datacontract:bronze-fixed-width",
+  "info": {
+    "title": "Bronze Fixed-Width Account Data Contract",
+    "version": "1.0.0",
+    "owner": "data-engineering",
+    "domain": "wealth-management",
+    "description": "Quality rules for fixed-width account file parsed into columnar format"
+  },
+  "dataset": {
+    "name": "bronze_fixed_width",
+    "description": "Account records parsed from 80-character fixed-width text files, including balances, status, and client cross-references",
+    "columns": [
+      {"name": "account_number", "type": "string", "description": "12-digit zero-padded account number"},
+      {"name": "account_holder", "type": "string", "description": "Account holder full name"},
+      {"name": "open_date_raw", "type": "string", "description": "Account open date in YYYYMMDD format"},
+      {"name": "balance_cents", "type": "long", "description": "Account balance in cents (integer)"},
+      {"name": "state_code", "type": "string", "description": "US state abbreviation (2 chars)"},
+      {"name": "account_status", "type": "string", "description": "Account status code (AC/CL/FR)"},
+      {"name": "product_code", "type": "string", "description": "Product code (CHK/SAV/BRK/IRA)"},
+      {"name": "client_id_prefix", "type": "string", "description": "First 6 chars of client UUID for joining"},
+      {"name": "record_type", "type": "string", "description": "Record type identifier (always ACCT)"},
+      {"name": "_line_length", "type": "integer", "description": "Raw line length for validation"}
+    ]
+  },
+  "source": {
+    "path": "/Volumes/${catalog}/${schema}/${volume}/fixed_width/",
+    "format": "text",
+    "fixed_width_columns": [
+      {"name": "account_number", "start": 1, "length": 12},
+      {"name": "account_holder", "start": 13, "length": 30, "trim": true},
+      {"name": "open_date_raw", "start": 43, "length": 8},
+      {"name": "balance_cents", "start": 51, "length": 12, "cast": "long"},
+      {"name": "state_code", "start": 63, "length": 2},
+      {"name": "account_status", "start": 65, "length": 2},
+      {"name": "product_code", "start": 67, "length": 4},
+      {"name": "client_id_prefix", "start": 71, "length": 6},
+      {"name": "record_type", "start": 77, "length": 4}
+    ]
+  },
+  "silver": {
+    "table_name": "silver_fixed_width",
+    "transforms": [
+      {"column": "account_holder", "expr": "TRIM(account_holder)"},
+      {"column": "state_code", "expr": "TRIM(state_code)"},
+      {"column": "account_status", "expr": "TRIM(account_status)"},
+      {"column": "product_code", "expr": "TRIM(product_code)"},
+      {"column": "open_date", "expr": "to_date(open_date_raw, 'yyyyMMdd')"},
+      {"column": "balance_dollars", "expr": "balance_cents / 100.0"}
+    ]
+  },
+  "quality": [
+    {
+      "rule_name": "account_number_not_null",
+      "column": "account_number",
+      "rule_type": "not_null",
+      "severity": "critical",
+      "description": "Account number must not be null"
+    },
+    {
+      "rule_name": "account_number_format",
+      "column": "account_number",
+      "rule_type": "regex",
+      "severity": "critical",
+      "params": {
+        "pattern": "^\\d{12}$"
+      },
+      "description": "Account number must be exactly 12 digits"
+    },
+    {
+      "rule_name": "line_length_exact",
+      "column": "_line_length",
+      "rule_type": "exact_length",
+      "severity": "critical",
+      "params": {
+        "length": 80
+      },
+      "description": "Each record line must be exactly 80 characters"
+    },
+    {
+      "rule_name": "state_code_format",
+      "column": "state_code",
+      "rule_type": "regex",
+      "severity": "error",
+      "params": {
+        "pattern": "^[A-Z]{2}$"
+      },
+      "description": "State code must be two uppercase letters"
+    },
+    {
+      "rule_name": "state_code_valid",
+      "column": "state_code",
+      "rule_type": "accepted_values",
+      "severity": "error",
+      "params": {
+        "values": [
+          "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+          "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+          "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+          "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+          "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+        ]
+      },
+      "description": "State code must be a valid US state abbreviation"
+    },
+    {
+      "rule_name": "account_status_valid",
+      "column": "account_status",
+      "rule_type": "accepted_values",
+      "severity": "error",
+      "params": {
+        "values": ["AC", "CL", "FR"]
+      },
+      "description": "Account status must be AC, CL, or FR"
+    },
+    {
+      "rule_name": "balance_cents_range",
+      "column": "balance_cents",
+      "rule_type": "range",
+      "severity": "warning",
+      "params": {
+        "min": 0
+      },
+      "description": "Balance must not be negative"
+    },
+    {
+      "rule_name": "open_date_format",
+      "column": "open_date_raw",
+      "rule_type": "date_format",
+      "severity": "error",
+      "params": {
+        "format": "yyyyMMdd"
+      },
+      "description": "Open date must be a valid date in YYYYMMDD format"
+    },
+    {
+      "rule_name": "record_type_valid",
+      "column": "record_type",
+      "rule_type": "accepted_values",
+      "severity": "critical",
+      "params": {
+        "values": ["ACCT"]
+      },
+      "description": "Record type must be ACCT"
+    }
+  ]
+}

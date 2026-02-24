@@ -1,0 +1,47 @@
+resources:
+  jobs:
+    pipeline_data_generator:
+      name: "DE Demo - Data Generator"
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: volume
+          default: ${var.volume}
+
+      tasks:
+        - task_key: generate_clientworks
+          notebook_task:
+            notebook_path: ../src/data_generators/gen_clientworks.py
+            source: WORKSPACE
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              volume: ${var.volume}
+
+        - task_key: generate_new_account
+          depends_on:
+            - task_key: generate_clientworks
+          notebook_task:
+            notebook_path: ../src/data_generators/gen_new_account.py
+            source: WORKSPACE
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              volume: ${var.volume}
+
+        - task_key: generate_fixed_width
+          depends_on:
+            - task_key: generate_clientworks
+          notebook_task:
+            notebook_path: ../src/data_generators/gen_fixed_width.py
+            source: WORKSPACE
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              volume: ${var.volume}
