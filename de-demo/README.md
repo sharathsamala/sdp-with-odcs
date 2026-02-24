@@ -22,17 +22,7 @@ End-to-end data engineering project where **ODCS (Open Data Contract Standard) v
      (Auto Loader)     Comments (UC)     (DQ Framework)
 ```
 
-### Pipeline 1: Data Generator (`pipeline_data_generator`)
-
-A Databricks Workflow job with three tasks that produce synthetic financial-services data with **intentionally injected anomalies** (nulls, duplicates, invalid enums, out-of-range values, future dates, format errors).
-
-| Task | Output Format | Rows | Landing Path |
-|---|---|---|---|
-| `gen_clientworks` | Pipe-delimited CSV | 50,000 | `/Volumes/.../clientworks/` |
-| `gen_new_account` | Comma-separated CSV | 30,000 | `/Volumes/.../new_account/` |
-| `gen_fixed_width` | Fixed-width text | 10,000 | `/Volumes/.../fixed_width/` |
-
-### Pipeline 2: Ingestion Pipeline (`pipeline_ingestion`)
+### Ingestion Pipeline (`pipeline_ingestion`)
 
 A Lakeflow (DLT) pipeline that reads the generated files through three layers:
 
@@ -130,6 +120,8 @@ The ODCS contract JSON is the **only file you need to create** to add a new data
 
 No changes to `bronze_ingestion.py` or `silver_transform.py` required.
 
+A mock data generator pipeline (`pipeline_data_generator`) is also included to produce synthetic financial-services data with intentionally injected anomalies for testing.
+
 ## Quick Start
 
 ```bash
@@ -139,7 +131,7 @@ databricks bundle validate --target dev
 # Deploy
 databricks bundle deploy --target dev
 
-# Generate test data
+# Generate mock test data (optional — only needed for demo)
 databricks bundle run pipeline_data_generator --target dev
 
 # Run the ingestion pipeline
@@ -219,11 +211,7 @@ de-demo/
 │   │   ├── rules_parser.py              # ODCS contract → Rule objects
 │   │   ├── engine.py                    # Run checks, capture results
 │   │   └── reporter.py                  # Write results, quarantine rows
-│   └── data_generators/                  # Test data with anomaly injection
-│       ├── generator_config.py           # Shared config, anomaly rates
-│       ├── gen_clientworks.py
-│       ├── gen_new_account.py
-│       └── gen_fixed_width.py
+│   └── data_generators/                  # Mock data generator (for demo/testing)
 ├── scripts/
 │   └── deploy_and_run.sh                # One-command deploy + run
 └── tests/
